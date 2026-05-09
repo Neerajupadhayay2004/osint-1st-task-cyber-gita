@@ -62,47 +62,20 @@ export const lookupCertificates = createServerFn({ method: "POST" })
     try {
       const domain = cleanDomain(data.domain);
       if (!domain) return fail("Empty domain");
-      
-      // crt.sh is notoriously slow and often returns 502/504
-      // We set a shorter timeout and handle errors gracefully
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
-
-      try {
-        const res = await fetch(`https://crt.sh/?q=${encodeURIComponent("%." + domain)}&output=json`, {
-          signal: controller.signal
+      const json = await safeJson(`https://crt.sh/?q=${encodeURIComponent("%." + domain)}&output=json`);
+      const subs = new Set<string>();
+      const certs: any[] = [];
+      for (const r of json || []) {
+        (r.name_value || "").split("\n").forEach((s: string) => subs.add(s.trim().toLowerCase()));
+        certs.push({
+          id: r.id,
+          name: r.name_value,
+          issuer: r.issuer_name,
+          notBefore: r.not_before,
+          notAfter: r.not_after,
         });
-        clearTimeout(timeoutId);
-
-        if (res.status === 502 || res.status === 504 || res.status === 503) {
-          return fail("crt.sh service is temporarily overloaded. Please try again in a few minutes.");
-        }
-
-        if (!res.ok) {
-          return fail(`Certificate transparency service returned error ${res.status}`);
-        }
-
-        const json = await res.json();
-        const subs = new Set<string>();
-        const certs: any[] = [];
-        for (const r of json || []) {
-          (r.name_value || "").split("\n").forEach((s: string) => subs.add(s.trim().toLowerCase()));
-          certs.push({
-            id: r.id,
-            name: r.name_value,
-            issuer: r.issuer_name,
-            notBefore: r.not_before,
-            notAfter: r.not_after,
-          });
-        }
-        return ok({ subdomains: [...subs].slice(0, 200), certs: certs.slice(0, 50), total: certs.length });
-      } catch (err: any) {
-        clearTimeout(timeoutId);
-        if (err.name === 'AbortError') {
-          return fail("Request to crt.sh timed out. The service is currently slow.");
-        }
-        throw err;
       }
+      return ok({ subdomains: [...subs].slice(0, 200), certs: certs.slice(0, 50), total: certs.length });
     } catch (e: any) { return fail(e.message); }
   });
 

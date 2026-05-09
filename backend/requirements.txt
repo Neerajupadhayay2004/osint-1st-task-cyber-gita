@@ -1,7 +1,5 @@
-google-generativeai
 fastapi
 uvicorn
-
 requests
 python-dotenv
 scikit-learn
