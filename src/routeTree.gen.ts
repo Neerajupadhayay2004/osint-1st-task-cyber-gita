@@ -13,7 +13,6 @@ import { Route as WatchlistRouteImport } from './routes/watchlist'
 import { Route as VirustotalRouteImport } from './routes/virustotal'
 import { Route as ThreatFeedRouteImport } from './routes/threat-feed'
 import { Route as ShodanRouteImport } from './routes/shodan'
-import { Route as SavedRouteImport } from './routes/saved'
 import { Route as KevRouteImport } from './routes/kev'
 import { Route as IpDomainRouteImport } from './routes/ip-domain'
 import { Route as EmailBreachRouteImport } from './routes/email-breach'
@@ -41,11 +40,6 @@ const ThreatFeedRoute = ThreatFeedRouteImport.update({
 const ShodanRoute = ShodanRouteImport.update({
   id: '/shodan',
   path: '/shodan',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SavedRoute = SavedRouteImport.update({
-  id: '/saved',
-  path: '/saved',
   getParentRoute: () => rootRouteImport,
 } as any)
 const KevRoute = KevRouteImport.update({
@@ -98,7 +92,6 @@ export interface FileRoutesByFullPath {
   '/email-breach': typeof EmailBreachRoute
   '/ip-domain': typeof IpDomainRoute
   '/kev': typeof KevRoute
-  '/saved': typeof SavedRoute
   '/shodan': typeof ShodanRoute
   '/threat-feed': typeof ThreatFeedRoute
   '/virustotal': typeof VirustotalRoute
@@ -113,7 +106,6 @@ export interface FileRoutesByTo {
   '/email-breach': typeof EmailBreachRoute
   '/ip-domain': typeof IpDomainRoute
   '/kev': typeof KevRoute
-  '/saved': typeof SavedRoute
   '/shodan': typeof ShodanRoute
   '/threat-feed': typeof ThreatFeedRoute
   '/virustotal': typeof VirustotalRoute
@@ -129,7 +121,6 @@ export interface FileRoutesById {
   '/email-breach': typeof EmailBreachRoute
   '/ip-domain': typeof IpDomainRoute
   '/kev': typeof KevRoute
-  '/saved': typeof SavedRoute
   '/shodan': typeof ShodanRoute
   '/threat-feed': typeof ThreatFeedRoute
   '/virustotal': typeof VirustotalRoute
@@ -146,7 +137,6 @@ export interface FileRouteTypes {
     | '/email-breach'
     | '/ip-domain'
     | '/kev'
-    | '/saved'
     | '/shodan'
     | '/threat-feed'
     | '/virustotal'
@@ -161,7 +151,6 @@ export interface FileRouteTypes {
     | '/email-breach'
     | '/ip-domain'
     | '/kev'
-    | '/saved'
     | '/shodan'
     | '/threat-feed'
     | '/virustotal'
@@ -176,7 +165,6 @@ export interface FileRouteTypes {
     | '/email-breach'
     | '/ip-domain'
     | '/kev'
-    | '/saved'
     | '/shodan'
     | '/threat-feed'
     | '/virustotal'
@@ -192,7 +180,6 @@ export interface RootRouteChildren {
   EmailBreachRoute: typeof EmailBreachRoute
   IpDomainRoute: typeof IpDomainRoute
   KevRoute: typeof KevRoute
-  SavedRoute: typeof SavedRoute
   ShodanRoute: typeof ShodanRoute
   ThreatFeedRoute: typeof ThreatFeedRoute
   VirustotalRoute: typeof VirustotalRoute
@@ -227,13 +214,6 @@ declare module '@tanstack/react-router' {
       path: '/shodan'
       fullPath: '/shodan'
       preLoaderRoute: typeof ShodanRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/saved': {
-      id: '/saved'
-      path: '/saved'
-      fullPath: '/saved'
-      preLoaderRoute: typeof SavedRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/kev': {
@@ -304,7 +284,6 @@ const rootRouteChildren: RootRouteChildren = {
   EmailBreachRoute: EmailBreachRoute,
   IpDomainRoute: IpDomainRoute,
   KevRoute: KevRoute,
-  SavedRoute: SavedRoute,
   ShodanRoute: ShodanRoute,
   ThreatFeedRoute: ThreatFeedRoute,
   VirustotalRoute: VirustotalRoute,
@@ -313,3 +292,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
