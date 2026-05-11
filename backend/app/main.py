@@ -16,12 +16,8 @@ from app.api.routes import (
     virustotal,
     auth,
     threat_intel,
-<<<<<<< HEAD
     analytics,
     alerts
-=======
-    analytics
->>>>>>> d0f073da67d0618f343f8ec0c7a223c3526914d5
 )
 
 from app.api.routes.email import router as email_router
@@ -134,15 +130,12 @@ app.include_router(
     tags=["Analytics"]
 )
 
-<<<<<<< HEAD
 app.include_router(
     alerts.router,
     prefix="/api/alerts",
     tags=["Alerts"]
 )
 
-=======
->>>>>>> d0f073da67d0618f343f8ec0c7a223c3526914d5
 # Email Intelligence Route
 app.include_router(
     email_router,
