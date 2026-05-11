@@ -1,6 +1,7 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+<<<<<<< HEAD
   "framework": "vite",
   "rewrites": [
     {
@@ -12,4 +13,7 @@
       "destination": "/index.html"
     }
   ]
+=======
+  "framework": "vite"
+>>>>>>> d0f073da67d0618f343f8ec0c7a223c3526914d5
 }

@@ -41,6 +41,7 @@ class ThreatIntelligenceService:
     # ---------------------------------------------------
 
     async def search_cves(self, query: str):
+<<<<<<< HEAD
         try:
             query = query.strip()
             if not query:
@@ -67,6 +68,41 @@ class ThreatIntelligenceService:
             
             # 3. Fallback to NVD if CIRCL is failing (optional but good)
             # For now, let's just return empty if CIRCL fails
+=======
+
+        try:
+
+            query = query.strip()
+
+            if query.upper().startswith("CVE-"):
+
+                response = await self.client.get(
+                    f"https://cve.circl.lu/api/cve/{query.upper()}"
+                )
+
+                if response.status_code == 200:
+
+                    data = response.json()
+
+                    return [data]
+
+            response = await self.client.get(
+                f"https://cve.circl.lu/api/search/{query}"
+            )
+
+            if response.status_code == 200:
+
+                data = response.json()
+
+                if isinstance(data, dict):
+
+                    return data.get("results", [])
+
+                elif isinstance(data, list):
+
+                    return data
+
+>>>>>>> d0f073da67d0618f343f8ec0c7a223c3526914d5
             return []
 
         except Exception as e:

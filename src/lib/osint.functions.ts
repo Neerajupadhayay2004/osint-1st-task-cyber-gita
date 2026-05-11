@@ -34,6 +34,7 @@ function cleanDomain(input: string): string {
 }
 
 /* ----------------------------- Gemini AI helper ----------------------------- */
+<<<<<<< HEAD
 async function geminiAnalyze(prompt: string, rawData?: any) {
   try {
     const key = process.env.GEMINI_API_KEY;
@@ -41,6 +42,14 @@ async function geminiAnalyze(prompt: string, rawData?: any) {
     
     const r = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
+=======
+async function geminiAnalyze(prompt: string) {
+  try {
+    const key = process.env.GEMINI_API_KEY;
+    if (!key) return { error: "GEMINI_API_KEY missing" };
+    const r = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+>>>>>>> d0f073da67d0618f343f8ec0c7a223c3526914d5
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -51,6 +60,7 @@ async function geminiAnalyze(prompt: string, rawData?: any) {
       }
     );
     const j = await r.json();
+<<<<<<< HEAD
     if (!r.ok) {
       console.error("Gemini API error:", j?.error?.message || `HTTP ${r.status}`);
       return getFrontendFallback(rawData, j?.error?.message || `HTTP ${r.status}`);
@@ -85,6 +95,12 @@ function getFrontendFallback(rawData: any, errorMsg: string) {
     ],
     technical_details: `AI Fallback triggered: ${errorMsg}`
   };
+=======
+    if (!r.ok) return { error: j?.error?.message || `HTTP ${r.status}` };
+    const text = j?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    try { return JSON.parse(text); } catch { return { summary: text, recommendations: [], risk_assessment: text }; }
+  } catch (e: any) { return { error: e.message }; }
+>>>>>>> d0f073da67d0618f343f8ec0c7a223c3526914d5
 }
 
 function isIp(v: string) { return /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(v) || v.includes(":"); }
@@ -143,8 +159,12 @@ Target: ${target}
 Geo: ${JSON.stringify(network)}
 AbuseIPDB: score=${abuseScore}, reports=${abuse?.totalReports || 0}, usage=${abuse?.usageType || "?"}
 VirusTotal: malicious=${vtStats.malicious || 0}, suspicious=${vtStats.suspicious || 0}, harmless=${vtStats.harmless || 0}
+<<<<<<< HEAD
 Shodan ports: ${(shodan?.ports || []).join(",") || "none"}`,
         { vtStats, abuseScore }
+=======
+Shodan ports: ${(shodan?.ports || []).join(",") || "none"}`
+>>>>>>> d0f073da67d0618f343f8ec0c7a223c3526914d5
       );
 
       const classifierThreat = isMalicious || score >= 0.4;
@@ -231,7 +251,11 @@ export const searchCves = createServerFn({ method: "POST" })
       
       // Call our backend
       try {
+<<<<<<< HEAD
         const json = await safeJson(`${BACKEND_URL}/threat-intel/cves/search?query=${encodeURIComponent(q)}`);
+=======
+        const json = await safeJson(`${BACKEND_URL}/threat-intel/cves/search?q=${encodeURIComponent(q)}`);
+>>>>>>> d0f073da67d0618f343f8ec0c7a223c3526914d5
         return ok({ items: json });
       } catch (backendError) {
         // If looks like a CVE id

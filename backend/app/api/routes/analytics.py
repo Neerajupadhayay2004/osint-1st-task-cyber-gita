@@ -3,9 +3,12 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models import db_models
 from app.services.reporting import reporting_service
+<<<<<<< HEAD
 from app.services.export_service import export_service
 from fastapi.responses import FileResponse
 import os
+=======
+>>>>>>> d0f073da67d0618f343f8ec0c7a223c3526914d5
 from typing import Any, Dict
 
 router = APIRouter()
@@ -32,6 +35,7 @@ def generate_report(report_data: Dict[str, Any], db: Session = Depends(get_db)):
         return {"message": "Report generated successfully", "path": path}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+<<<<<<< HEAD
 
 @router.get("/export/csv")
 def export_scans_csv(db: Session = Depends(get_db)):
@@ -63,3 +67,5 @@ def export_scan_pdf(scan_id: int, db: Session = Depends(get_db)):
     
     path = export_service.generate_pdf_report(scan.results, f"scan_report_{scan_id}")
     return FileResponse(path, filename=os.path.basename(path), media_type="application/pdf")
+=======
+>>>>>>> d0f073da67d0618f343f8ec0c7a223c3526914d5

@@ -9,9 +9,12 @@ from sqlalchemy.orm import Session
 from app.models import db_models
 import json
 import re
+<<<<<<< HEAD
 import logging
 
 logger = logging.getLogger(__name__)
+=======
+>>>>>>> d0f073da67d0618f343f8ec0c7a223c3526914d5
 
 router = APIRouter()
 
@@ -71,6 +74,7 @@ async def analyze_ip(ip: str, db: Session = Depends(get_db)):
     elif threat_score > 0.4: threat_level = "high"
     elif threat_score > 0.2: threat_level = "medium"
 
+<<<<<<< HEAD
     # 5.5 Create Alert for high/critical threats
     if threat_level in ["high", "critical"]:
         try:
@@ -85,6 +89,8 @@ async def analyze_ip(ip: str, db: Session = Depends(get_db)):
         except Exception as e:
             logger.error(f"Error creating alert: {e}")
 
+=======
+>>>>>>> d0f073da67d0618f343f8ec0c7a223c3526914d5
     # 6. Standardized Professional Response
     result = {
         "target": target,

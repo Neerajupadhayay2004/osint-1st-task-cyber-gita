@@ -19,8 +19,14 @@ async def latest_cves():
 # Search CVEs
 # ---------------------------------------------------
 
+<<<<<<< HEAD
 @router.get("/cves/search")
 async def search_cves(query: str):
+=======
+@router.get("/cves/search/{query}")
+async def search_cves(query: str):
+
+>>>>>>> d0f073da67d0618f343f8ec0c7a223c3526914d5
     return await threat_intel_service.search_cves(query)
 
 # ---------------------------------------------------
