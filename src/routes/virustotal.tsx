@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { ResultCard, KV } from "@/components/ResultCard";
 import { vtLookup, abuseCheck } from "@/lib/osint.functions";
 import { ScanSearch, Search, ShieldAlert } from "lucide-react";
+import { AiAnalysis } from "@/components/AiAnalysis";
 
 export const Route = createFileRoute("/virustotal")({
   component: Page,
@@ -121,6 +122,17 @@ function Page() {
         </div>
       )}
       {abuse && !abuse.ok && <div className="glass-card p-4 text-destructive text-sm mt-4">AbuseIPDB: {abuse.error}</div>}
+
+      {vt?.ok && (
+        <div className="mt-6">
+          <AiAnalysis context={`VirusTotal ${kind}`} data={{
+            target: value, kind,
+            stats, reputation: vt.data.attributes?.reputation,
+            categories: vt.data.attributes?.categories,
+            abuse: abuse?.ok ? { score: abuse.data.abuseConfidenceScore, reports: abuse.data.totalReports, usage: abuse.data.usageType } : null,
+          }} />
+        </div>
+      )}
     </AppShell>
   );
 }

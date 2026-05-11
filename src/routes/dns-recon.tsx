@@ -5,6 +5,7 @@ import AppShell from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { dnsLookup, lookupCertificates, rdapLookup } from "@/lib/osint.functions";
 import { FileSearch, Search } from "lucide-react";
+import { AiAnalysis } from "@/components/AiAnalysis";
 
 export const Route = createFileRoute("/dns-recon")({
   component: Page,
@@ -89,6 +90,17 @@ function Page() {
         )}
         {rdap && !rdap.ok && <div className="text-destructive text-sm">{rdap.error}</div>}
       </div>
+
+      {(dns?.ok || certs?.ok) && (
+        <div className="mt-6">
+          <AiAnalysis context="DNS / subdomain recon" data={{
+            domain,
+            dns: dns?.ok ? dns.data : null,
+            subdomains_sample: certs?.ok ? certs.data.subdomains.slice(0,30) : [],
+            subdomain_count: certs?.ok ? certs.data.subdomains.length : 0,
+          }} />
+        </div>
+      )}
     </AppShell>
   );
 }
