@@ -7,6 +7,7 @@ import { ResultCard, KV } from "@/components/ResultCard";
 import { shodanHost, shodanSearch } from "@/lib/osint.functions";
 import { Server, Search, Download } from "lucide-react";
 import { downloadCsv, downloadPdf } from "@/lib/export";
+import { AiAnalysis } from "@/components/AiAnalysis";
 
 export const Route = createFileRoute("/shodan")({
   component: Page,
@@ -112,6 +113,17 @@ function Page() {
             ))}
           </div>
         </ResultCard>
+      )}
+
+      {hostRes?.ok && (
+        <div className="mt-4">
+          <AiAnalysis context="Shodan host recon" data={{
+            ip: hostRes.data.ip_str, org: hostRes.data.org, isp: hostRes.data.isp,
+            os: hostRes.data.os, ports: hostRes.data.ports,
+            vulns: Object.keys(hostRes.data.vulns || {}).slice(0,20),
+            services: (hostRes.data.data || []).slice(0,15).map((s:any)=>({port:s.port, product:s.product, version:s.version})),
+          }} />
+        </div>
       )}
     </AppShell>
   );

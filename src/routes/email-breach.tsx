@@ -5,6 +5,7 @@ import AppShell from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { checkEmailBreach } from "@/lib/osint.functions";
 import { Mail, Search, ShieldCheck, AlertTriangle } from "lucide-react";
+import { AiAnalysis } from "@/components/AiAnalysis";
 
 export const Route = createFileRoute("/email-breach")({
   component: Page,
@@ -79,6 +80,12 @@ function Page() {
             ))}
           </div>
         </>
+      )}
+
+      {res?.ok && (
+        <div className="mt-6">
+          <AiAnalysis context="email breach" data={{ email, breaches_count: breaches.length, pastes, breaches: breaches.slice(0,10) }} />
+        </div>
       )}
     </AppShell>
   );
