@@ -384,3 +384,24 @@ export const vtLookup = createServerFn({ method: "POST" })
 
 
 
+
+/* ----------------------------- Generic Gemini AI Analyze ----------------------------- */
+export const aiAnalyze = createServerFn({ method: "POST" })
+  .inputValidator((d: { context: string; data: any }) => d)
+  .handler(async ({ data }) => {
+    const prompt = `You are an elite cybersecurity analyst. Analyze the following ${data.context} OSINT data.
+Return STRICT JSON ONLY with these keys:
+{
+  "summary": "1-line verdict (max 120 chars)",
+  "risk_assessment": "2-3 sentence detailed risk paragraph",
+  "key_findings": ["finding 1","finding 2","finding 3"],
+  "recommendations": ["action 1","action 2","action 3","action 4"],
+  "severity": "low|medium|high|critical"
+}
+
+DATA:
+${JSON.stringify(data.data).slice(0, 8000)}`;
+    const res = await geminiAnalyze(prompt);
+    if (res.error) return fail(res.error);
+    return ok(res);
+  });
