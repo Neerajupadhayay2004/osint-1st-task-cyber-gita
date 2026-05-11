@@ -1,0 +1,9 @@
+from fastapi import APIRouter
+from app.services.threat_intelligence import threat_intel_service
+
+router = APIRouter()
+
+@router.get("/{email}")
+async def analyze_email(email: str):
+
+    return await threat_intel_service.search_breaches(email)

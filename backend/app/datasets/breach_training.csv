@@ -1,0 +1,15 @@
+text,label
+phishing website detected,1
+malware communication found,1
+botnet traffic identified,1
+credential leak discovered,1
+safe educational website,0
+normal browsing activity,0
+trusted banking portal,0
+suspicious ransomware domain,1
+trojan payload downloaded,1
+normal api request,0
+dark web leak found,1
+email exposed in breach,1
+secure login activity,0
+harmless public server,0

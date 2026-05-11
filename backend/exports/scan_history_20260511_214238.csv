@@ -1,0 +1,2 @@
+id,target,scan_type,threat_level,threat_score,timestamp
+1,8.8.8.8,combined_ip,low,0.0,2026-05-11 15:55:56.507112
