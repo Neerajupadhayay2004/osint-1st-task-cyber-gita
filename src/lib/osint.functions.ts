@@ -33,25 +33,115 @@ function cleanDomain(input: string): string {
   return domain;
 }
 
-/* ----------------------------- IP / Domain ----------------------------- */
+/* ----------------------------- Gemini AI helper ----------------------------- */
+async function geminiAnalyze(prompt: string) {
+  try {
+    const key = process.env.GEMINI_API_KEY;
+    if (!key) return { error: "GEMINI_API_KEY missing" };
+    const r = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.3, responseMimeType: "application/json" },
+        }),
+      }
+    );
+    const j = await r.json();
+    if (!r.ok) return { error: j?.error?.message || `HTTP ${r.status}` };
+    const text = j?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    try { return JSON.parse(text); } catch { return { summary: text, recommendations: [], risk_assessment: text }; }
+  } catch (e: any) { return { error: e.message }; }
+}
+
+function isIp(v: string) { return /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(v) || v.includes(":"); }
+
+/* ----------------------------- IP / Domain (unified) ----------------------------- */
 export const lookupIp = createServerFn({ method: "POST" })
   .inputValidator((d: { query: string }) => d)
   .handler(async ({ data }) => {
     try {
       const q = cleanDomain(data.query);
       if (!q) return fail("Empty query");
-      
-      // Try to call our backend first
-      try {
-        const json = await safeJson(`${BACKEND_URL}/osint/ip/${encodeURIComponent(q)}`);
-        return ok(json);
-      } catch (backendError) {
-        console.warn("Backend lookup failed, falling back to direct API:", backendError);
-        // ip-api.com — free, no key
-        const json = await safeJson(`http://ip-api.com/json/${encodeURIComponent(q)}?fields=66846719`);
-        if (json?.status === "fail") return fail(json.message || "Lookup failed");
-        return ok(json);
-      }
+      const target = q;
+      const looksIp = isIp(q);
+
+      // 1) Geo via ip-api (works for IP and domain)
+      const geo = await safeJson(`http://ip-api.com/json/${encodeURIComponent(q)}?fields=66846719`)
+        .catch(e => ({ status: "fail", message: e.message }));
+      const ip = geo?.query || (looksIp ? q : null);
+
+      // 2) Parallel: AbuseIPDB, VirusTotal, Shodan
+      const [abuse, vt, shodan] = await Promise.all([
+        ip ? safeJson(
+          `https://api.abuseipdb.com/api/v2/check?ipAddress=${encodeURIComponent(ip)}&maxAgeInDays=90&verbose=true`,
+          { headers: { Key: process.env.ABUSEIPDB_API_KEY || "", Accept: "application/json" } }
+        ).then(r => r?.data || r).catch(e => ({ error: e.message })) : Promise.resolve(null),
+        safeJson(
+          `https://www.virustotal.com/api/v3/${looksIp ? "ip_addresses" : "domains"}/${encodeURIComponent(looksIp ? (ip || q) : q)}`,
+          { headers: { "x-apikey": process.env.VIRUSTOTAL_API_KEY || "", Accept: "application/json" } }
+        ).then(r => r?.data || r).catch(e => ({ error: e.message })),
+        ip ? safeJson(`https://api.shodan.io/shodan/host/${encodeURIComponent(ip)}?key=${process.env.SHODAN_API_KEY || ""}`)
+          .catch(e => ({ error: e.message })) : Promise.resolve(null),
+      ]);
+
+      // Build summary
+      const vtStats = vt?.attributes?.last_analysis_stats || {};
+      const malicious = (vtStats.malicious || 0) + (vtStats.suspicious || 0);
+      const totalDetections = malicious;
+      const abuseScore = abuse?.abuseConfidenceScore || 0;
+      const isMalicious = malicious > 0 || abuseScore >= 50;
+      const isWhitelisted = abuse?.isWhitelisted === true;
+      const score = Math.min(1, (abuseScore / 100) * 0.6 + Math.min(malicious / 10, 1) * 0.4);
+      const level = score >= 0.75 ? "critical" : score >= 0.4 ? "high" : score >= 0.15 ? "medium" : "low";
+
+      const network = {
+        isp: geo?.isp, org: geo?.org, asn: geo?.as,
+        country: geo?.country, city: `${geo?.city || ""}${geo?.regionName ? ", " + geo.regionName : ""}`.trim().replace(/^,\s*/, ""),
+        timezone: geo?.timezone, lat: geo?.lat, lon: geo?.lon,
+        ports: shodan?.ports || [],
+      };
+
+      // 3) Gemini analysis
+      const gem = await geminiAnalyze(
+        `You are a SOC analyst. Analyze this OSINT data and return STRICT JSON with keys:
+{"summary": "1-line verdict","risk_assessment":"2-3 sentence detailed risk paragraph","recommendations":["action 1","action 2","action 3","action 4"]}
+Target: ${target}
+Geo: ${JSON.stringify(network)}
+AbuseIPDB: score=${abuseScore}, reports=${abuse?.totalReports || 0}, usage=${abuse?.usageType || "?"}
+VirusTotal: malicious=${vtStats.malicious || 0}, suspicious=${vtStats.suspicious || 0}, harmless=${vtStats.harmless || 0}
+Shodan ports: ${(shodan?.ports || []).join(",") || "none"}`
+      );
+
+      const classifierThreat = isMalicious || score >= 0.4;
+      return ok({
+        target,
+        summary: {
+          is_malicious: isMalicious,
+          is_whitelisted: isWhitelisted,
+          threat_score: Number(score.toFixed(2)),
+          threat_level: level,
+          total_detections: totalDetections,
+        },
+        network,
+        ai_intelligence: {
+          classifier: {
+            threat: classifierThreat,
+            confidence: Math.max(0.6, score),
+            text: classifierThreat
+              ? `Suspicious indicators detected from ${malicious} VT vendor(s) and AbuseIPDB score ${abuseScore}.`
+              : `No malicious signals across ${Object.keys(vtStats).length || 0} reputation engines.`,
+          },
+          gemini_report: gem.error ? { error: gem.error } : {
+            summary: gem.summary || "Analysis complete.",
+            risk_assessment: gem.risk_assessment || "",
+            recommendations: gem.recommendations || [],
+          },
+        },
+        raw_sources: { geo, abuse, virustotal: vt, shodan },
+      });
     } catch (e: any) { return fail(e.message); }
   });
 
