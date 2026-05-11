@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WatchlistRouteImport } from './routes/watchlist'
 import { Route as VirustotalRouteImport } from './routes/virustotal'
 import { Route as ThreatFeedRouteImport } from './routes/threat-feed'
 import { Route as ShodanRouteImport } from './routes/shodan'
@@ -18,9 +19,15 @@ import { Route as IpDomainRouteImport } from './routes/ip-domain'
 import { Route as EmailBreachRouteImport } from './routes/email-breach'
 import { Route as DnsReconRouteImport } from './routes/dns-recon'
 import { Route as CveSearchRouteImport } from './routes/cve-search'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AlertsRouteImport } from './routes/alerts'
 import { Route as IndexRouteImport } from './routes/index'
 
+const WatchlistRoute = WatchlistRouteImport.update({
+  id: '/watchlist',
+  path: '/watchlist',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const VirustotalRoute = VirustotalRouteImport.update({
   id: '/virustotal',
   path: '/virustotal',
@@ -66,6 +73,11 @@ const CveSearchRoute = CveSearchRouteImport.update({
   path: '/cve-search',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AlertsRoute = AlertsRouteImport.update({
   id: '/alerts',
   path: '/alerts',
@@ -80,6 +92,7 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/alerts': typeof AlertsRoute
+  '/auth': typeof AuthRoute
   '/cve-search': typeof CveSearchRoute
   '/dns-recon': typeof DnsReconRoute
   '/email-breach': typeof EmailBreachRoute
@@ -89,10 +102,12 @@ export interface FileRoutesByFullPath {
   '/shodan': typeof ShodanRoute
   '/threat-feed': typeof ThreatFeedRoute
   '/virustotal': typeof VirustotalRoute
+  '/watchlist': typeof WatchlistRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/alerts': typeof AlertsRoute
+  '/auth': typeof AuthRoute
   '/cve-search': typeof CveSearchRoute
   '/dns-recon': typeof DnsReconRoute
   '/email-breach': typeof EmailBreachRoute
@@ -102,11 +117,13 @@ export interface FileRoutesByTo {
   '/shodan': typeof ShodanRoute
   '/threat-feed': typeof ThreatFeedRoute
   '/virustotal': typeof VirustotalRoute
+  '/watchlist': typeof WatchlistRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/alerts': typeof AlertsRoute
+  '/auth': typeof AuthRoute
   '/cve-search': typeof CveSearchRoute
   '/dns-recon': typeof DnsReconRoute
   '/email-breach': typeof EmailBreachRoute
@@ -116,12 +133,14 @@ export interface FileRoutesById {
   '/shodan': typeof ShodanRoute
   '/threat-feed': typeof ThreatFeedRoute
   '/virustotal': typeof VirustotalRoute
+  '/watchlist': typeof WatchlistRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/alerts'
+    | '/auth'
     | '/cve-search'
     | '/dns-recon'
     | '/email-breach'
@@ -131,10 +150,12 @@ export interface FileRouteTypes {
     | '/shodan'
     | '/threat-feed'
     | '/virustotal'
+    | '/watchlist'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/alerts'
+    | '/auth'
     | '/cve-search'
     | '/dns-recon'
     | '/email-breach'
@@ -144,10 +165,12 @@ export interface FileRouteTypes {
     | '/shodan'
     | '/threat-feed'
     | '/virustotal'
+    | '/watchlist'
   id:
     | '__root__'
     | '/'
     | '/alerts'
+    | '/auth'
     | '/cve-search'
     | '/dns-recon'
     | '/email-breach'
@@ -157,11 +180,13 @@ export interface FileRouteTypes {
     | '/shodan'
     | '/threat-feed'
     | '/virustotal'
+    | '/watchlist'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AlertsRoute: typeof AlertsRoute
+  AuthRoute: typeof AuthRoute
   CveSearchRoute: typeof CveSearchRoute
   DnsReconRoute: typeof DnsReconRoute
   EmailBreachRoute: typeof EmailBreachRoute
@@ -171,10 +196,18 @@ export interface RootRouteChildren {
   ShodanRoute: typeof ShodanRoute
   ThreatFeedRoute: typeof ThreatFeedRoute
   VirustotalRoute: typeof VirustotalRoute
+  WatchlistRoute: typeof WatchlistRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/watchlist': {
+      id: '/watchlist'
+      path: '/watchlist'
+      fullPath: '/watchlist'
+      preLoaderRoute: typeof WatchlistRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/virustotal': {
       id: '/virustotal'
       path: '/virustotal'
@@ -238,6 +271,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CveSearchRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/alerts': {
       id: '/alerts'
       path: '/alerts'
@@ -258,6 +298,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AlertsRoute: AlertsRoute,
+  AuthRoute: AuthRoute,
   CveSearchRoute: CveSearchRoute,
   DnsReconRoute: DnsReconRoute,
   EmailBreachRoute: EmailBreachRoute,
@@ -267,7 +308,18 @@ const rootRouteChildren: RootRouteChildren = {
   ShodanRoute: ShodanRoute,
   ThreatFeedRoute: ThreatFeedRoute,
   VirustotalRoute: VirustotalRoute,
+  WatchlistRoute: WatchlistRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
