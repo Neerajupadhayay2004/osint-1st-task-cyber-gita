@@ -119,18 +119,21 @@ function WatchlistPage() {
 
   function exportCsv() {
     if (!items.length) return toast.error("Nothing to export");
-    downloadCsv("cybergita-watchlist", items.map(i => ({
-      kind: i.kind, value: i.value, label: i.label || "", added: i.created_at,
-    })));
+    downloadCsv(
+      "cybergita-watchlist.csv",
+      ["Kind", "Value", "Label", "Added"],
+      items.map(i => [i.kind.toUpperCase(), i.value, i.label || "", i.created_at]),
+    );
   }
   function exportPdf() {
     if (!items.length) return toast.error("Nothing to export");
     downloadPdf({
+      filename: "cybergita-watchlist.pdf",
       title: "Watchlist Report",
       subtitle: `${items.length} monitored assets`,
       sections: [{
         heading: "Tracked Assets",
-        columns: ["Kind", "Value", "Label", "Added"],
+        headers: ["Kind", "Value", "Label", "Added"],
         rows: items.map(i => [i.kind.toUpperCase(), i.value, i.label || "—", new Date(i.created_at).toLocaleString()]),
       }],
     });

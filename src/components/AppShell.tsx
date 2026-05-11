@@ -13,7 +13,7 @@ const nav = [
   { to: "/dns-recon", label: "DNS / Subdomains", icon: FileSearch },
   { to: "/shodan", label: "Shodan", icon: Server },
   { to: "/virustotal", label: "VirusTotal", icon: ScanSearch },
-  { to: "/saved", label: "Saved", icon: Bookmark },
+  { to: "/watchlist", label: "Watchlist", icon: Bookmark },
 ];
 
 export default function AppShell({ children }: { children?: ReactNode }) {
