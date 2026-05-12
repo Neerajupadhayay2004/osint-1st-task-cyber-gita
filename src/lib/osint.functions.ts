@@ -269,39 +269,83 @@ export const checkEmailBreach = createServerFn({ method: "POST" })
     } catch (e: any) { return fail(e.message); }
   });
 
-/* ----------------------------- CVE Search (CIRCL) ----------------------------- */
+/* ----------------------------- CVE helpers (NVD 2.0) ----------------------------- */
+function normalizeNvdCve(v: any) {
+  const cve = v?.cve || v;
+  const id = cve?.id || "";
+  const descriptions = cve?.descriptions || [];
+  const summary =
+    descriptions.find((d: any) => d.lang === "en")?.value ||
+    descriptions[0]?.value ||
+    "";
+  const m = cve?.metrics || {};
+  const cvssEntry =
+    m.cvssMetricV31?.[0] || m.cvssMetricV30?.[0] || m.cvssMetricV2?.[0];
+  const cvss = cvssEntry?.cvssData?.baseScore ?? null;
+  const severity =
+    cvssEntry?.cvssData?.baseSeverity || cvssEntry?.baseSeverity || null;
+  return {
+    id,
+    summary,
+    cvss,
+    severity,
+    Published: cve?.published,
+    Modified: cve?.lastModified,
+    references: (cve?.references || []).map((r: any) => r.url).slice(0, 10),
+    cwe: (cve?.weaknesses || [])
+      .flatMap((w: any) => (w.description || []).map((d: any) => d.value))
+      .filter(Boolean),
+  };
+}
+
+/* ----------------------------- CVE Search (NVD) ----------------------------- */
 export const searchCves = createServerFn({ method: "POST" })
   .inputValidator((d: { query: string }) => d)
   .handler(async ({ data }) => {
     try {
       const q = data.query.trim();
       if (!q) return fail("Empty query");
-      
-      // Call our backend
-      try {
-        const json = await safeJson(`${BACKEND_URL}/threat-intel/cves/search?query=${encodeURIComponent(q)}`);
-        return ok({ items: json });
-      } catch (backendError) {
-        // Fallback to CIRCL directly
-        const json = await safeJson(`https://cve.circl.lu/api/search/${encodeURIComponent(q)}`);
-        return ok({ items: Array.isArray(json) ? json : json?.results || [] });
-      }
-    } catch (e: any) { return fail(e.message); }
+
+      const isCveId = /^CVE-\d{4}-\d{4,7}$/i.test(q);
+      const url = isCveId
+        ? `https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=${encodeURIComponent(q.toUpperCase())}`
+        : `https://services.nvd.nist.gov/rest/json/cves/2.0?keywordSearch=${encodeURIComponent(q)}&resultsPerPage=40`;
+
+      const json = await safeJson(url, {
+        headers: { "User-Agent": "OSINT-Dashboard/1.0", Accept: "application/json" },
+      });
+      const items = (json?.vulnerabilities || []).map(normalizeNvdCve);
+      return ok({ items, total: json?.totalResults || items.length });
+    } catch (e: any) {
+      return fail(e.message);
+    }
   });
 
-/* ----------------------------- Threat Feed (URLhaus) ----------------------------- */
+/* ----------------------------- Threat Feed (NVD recent CVEs) ----------------------------- */
 export const getThreatFeed = createServerFn({ method: "GET" })
   .handler(async () => {
     try {
-      // Call our backend
-      try {
-        const json = await safeJson(`${BACKEND_URL}/threat-intel/malware/recent`);
-        return ok({ items: json });
-      } catch (backendError) {
-        const json = await safeJson("https://urlhaus-api.abuse.ch/v1/urls/recent/");
-        return ok({ items: json?.urls || [] });
-      }
-    } catch (e: any) { return fail(e.message); }
+      const end = new Date();
+      const start = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const fmt = (d: Date) => d.toISOString().split(".")[0] + ".000";
+      const url =
+        `https://services.nvd.nist.gov/rest/json/cves/2.0` +
+        `?lastModStartDate=${encodeURIComponent(fmt(start))}` +
+        `&lastModEndDate=${encodeURIComponent(fmt(end))}` +
+        `&resultsPerPage=50`;
+
+      const json = await safeJson(url, {
+        headers: { "User-Agent": "OSINT-Dashboard/1.0", Accept: "application/json" },
+      });
+      const items = (json?.vulnerabilities || [])
+        .map(normalizeNvdCve)
+        .sort((a: any, b: any) =>
+          (b.Modified || "").localeCompare(a.Modified || "")
+        );
+      return ok({ items, total: json?.totalResults || items.length });
+    } catch (e: any) {
+      return fail(e.message);
+    }
   });
 
 /* ----------------------------- Aliases for legacy imports ----------------------------- */
