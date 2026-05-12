@@ -339,7 +339,8 @@ export const fetchKev = createServerFn({ method: "GET" })
   .handler(async () => {
     try {
       const j = await safeJson("https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json");
-      return ok({ items: (j?.vulnerabilities || []).slice(0, 200), count: j?.count });
+      const items = (j?.vulnerabilities || []).slice(0, 200);
+      return ok({ items, vulnerabilities: items, count: j?.count });
     } catch (e: any) { return fail(e.message); }
   });
 
