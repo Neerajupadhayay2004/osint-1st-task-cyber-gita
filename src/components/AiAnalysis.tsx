@@ -12,9 +12,9 @@ export function AiAnalysis({ context, data }: { context: string; data: any }) {
   async function run() {
     setState("loading"); setErr("");
     try {
-      const res = await fn({ data: { context, data } });
-      if (res.ok) { setResult(res.data); setState("done"); }
-      else { setErr(res.error); setState("error"); }
+      const res: any = await fn({ data: { context, data } });
+      if (res?.ok) { setResult(res.data); setState("done"); }
+      else { setErr(res?.error || "Unknown error"); setState("error"); }
     } catch (e: any) { setErr(e.message); setState("error"); }
   }
 
