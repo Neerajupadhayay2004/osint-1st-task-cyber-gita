@@ -303,3 +303,105 @@ export const getThreatFeed = createServerFn({ method: "GET" })
       }
     } catch (e: any) { return fail(e.message); }
   });
+
+/* ----------------------------- Aliases for legacy imports ----------------------------- */
+export const fetchThreatFeed = getThreatFeed;
+export const dnsLookup = createServerFn({ method: "POST" })
+  .inputValidator((d: { domain: string; type?: string }) => d)
+  .handler(async ({ data }) => {
+    try {
+      const domain = cleanDomain(data.domain);
+      if (!domain) return fail("Empty domain");
+      const types = data.type && data.type !== "ALL" ? [data.type] : ["A", "AAAA", "MX", "TXT", "NS", "CNAME"];
+      const results: Record<string, any[]> = {};
+      await Promise.all(types.map(async (t) => {
+        try {
+          const j = await safeJson(`https://dns.google/resolve?name=${encodeURIComponent(domain)}&type=${t}`);
+          results[t] = j?.Answer || [];
+        } catch { results[t] = []; }
+      }));
+      return ok({ domain, records: results });
+    } catch (e: any) { return fail(e.message); }
+  });
+
+export const rdapLookup = createServerFn({ method: "POST" })
+  .inputValidator((d: { domain: string }) => d)
+  .handler(async ({ data }) => {
+    try {
+      const domain = cleanDomain(data.domain);
+      if (!domain) return fail("Empty domain");
+      const j = await safeJson(`https://rdap.org/domain/${encodeURIComponent(domain)}`);
+      return ok(j);
+    } catch (e: any) { return fail(e.message); }
+  });
+
+export const fetchKev = createServerFn({ method: "GET" })
+  .handler(async () => {
+    try {
+      const j = await safeJson("https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json");
+      return ok({ items: (j?.vulnerabilities || []).slice(0, 200), count: j?.count });
+    } catch (e: any) { return fail(e.message); }
+  });
+
+export const shodanHost = createServerFn({ method: "POST" })
+  .inputValidator((d: { ip: string }) => d)
+  .handler(async ({ data }) => {
+    try {
+      const j = await safeJson(`https://api.shodan.io/shodan/host/${encodeURIComponent(data.ip)}?key=${process.env.SHODAN_API_KEY || ""}`);
+      return ok(j);
+    } catch (e: any) { return fail(e.message); }
+  });
+
+export const shodanSearch = createServerFn({ method: "POST" })
+  .inputValidator((d: { query: string }) => d)
+  .handler(async ({ data }) => {
+    try {
+      const j = await safeJson(`https://api.shodan.io/shodan/host/search?key=${process.env.SHODAN_API_KEY || ""}&query=${encodeURIComponent(data.query)}`);
+      return ok(j);
+    } catch (e: any) { return fail(e.message); }
+  });
+
+export const vtLookup = createServerFn({ method: "POST" })
+  .inputValidator((d: { kind: "ip" | "domain" | "url" | "file"; value: string }) => d)
+  .handler(async ({ data }) => {
+    try {
+      const map: Record<string, string> = { ip: "ip_addresses", domain: "domains", url: "urls", file: "files" };
+      const path = map[data.kind] || "domains";
+      let value = data.value;
+      if (data.kind === "url") value = btoa(value).replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
+      const j = await safeJson(`https://www.virustotal.com/api/v3/${path}/${encodeURIComponent(value)}`, {
+        headers: { "x-apikey": process.env.VIRUSTOTAL_API_KEY || "", Accept: "application/json" },
+      });
+      return ok(j?.data || j);
+    } catch (e: any) { return fail(e.message); }
+  });
+
+export const abuseCheck = createServerFn({ method: "POST" })
+  .inputValidator((d: { ip: string }) => d)
+  .handler(async ({ data }) => {
+    try {
+      const j = await safeJson(
+        `https://api.abuseipdb.com/api/v2/check?ipAddress=${encodeURIComponent(data.ip)}&maxAgeInDays=90&verbose=true`,
+        { headers: { Key: process.env.ABUSEIPDB_API_KEY || "", Accept: "application/json" } }
+      );
+      return ok(j?.data || j);
+    } catch (e: any) { return fail(e.message); }
+  });
+
+export const aiAnalyze = createServerFn({ method: "POST" })
+  .inputValidator((d: { context: string; data: any }) => d)
+  .handler(async ({ data }) => {
+    const prompt = `You are a senior cybersecurity OSINT analyst. Analyze the following ${data.context} data and return STRICT JSON with these keys:
+{
+  "summary": "1-2 sentence executive summary",
+  "risk_assessment": "2-4 sentence detailed risk paragraph",
+  "key_findings": ["finding 1", "finding 2", "finding 3"],
+  "recommendations": ["actionable step 1", "actionable step 2", "actionable step 3"],
+  "severity": "low" | "medium" | "high" | "critical"
+}
+
+Data:
+${JSON.stringify(data.data).slice(0, 8000)}`;
+    const result = await geminiAnalyze(prompt, data.data);
+    return ok(result);
+  });
