@@ -122,3 +122,96 @@
     100% { box-shadow: 0 0 0 0 transparent; }
   }
 }
+
+@layer components {
+  /* 4K crisp 3D edges & tilt cards */
+  .card-3d {
+    position: relative;
+    transform-style: preserve-3d;
+    transform: perspective(1200px) rotateX(0deg) rotateY(0deg);
+    transition: transform 400ms cubic-bezier(.2,.8,.2,1), box-shadow 400ms ease;
+    will-change: transform;
+    border: 1px solid color-mix(in oklab, var(--primary) 22%, transparent);
+    box-shadow:
+      0 1px 0 0 color-mix(in oklab, white 8%, transparent) inset,
+      0 -1px 0 0 color-mix(in oklab, var(--primary) 30%, transparent) inset,
+      0 30px 60px -30px color-mix(in oklab, var(--primary) 35%, transparent),
+      0 18px 36px -18px oklch(0 0 0 / .55);
+    border-radius: var(--radius-lg);
+    background: var(--gradient-surface);
+    backface-visibility: hidden;
+    -webkit-font-smoothing: antialiased;
+    image-rendering: -webkit-optimize-contrast;
+  }
+  .card-3d::before {
+    content: "";
+    position: absolute; inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg,
+      color-mix(in oklab, var(--primary) 70%, transparent),
+      transparent 40%,
+      color-mix(in oklab, var(--accent) 60%, transparent));
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    pointer-events: none;
+    opacity: .9;
+  }
+  .card-3d::after {
+    content: "";
+    position: absolute; inset: 0;
+    border-radius: inherit;
+    background:
+      radial-gradient(120% 80% at 50% -10%,
+        color-mix(in oklab, white 8%, transparent),
+        transparent 60%);
+    pointer-events: none;
+    mix-blend-mode: overlay;
+  }
+  .card-3d:hover {
+    transform: perspective(1200px) rotateX(3deg) rotateY(-3deg) translateZ(6px);
+    box-shadow:
+      0 1px 0 0 color-mix(in oklab, white 12%, transparent) inset,
+      0 -1px 0 0 color-mix(in oklab, var(--primary) 50%, transparent) inset,
+      0 40px 80px -30px color-mix(in oklab, var(--primary) 55%, transparent),
+      0 24px 48px -16px oklch(0 0 0 / .65);
+  }
+
+  .edge-4k {
+    border: 1px solid color-mix(in oklab, var(--primary) 35%, transparent);
+    box-shadow:
+      0 0 0 .5px color-mix(in oklab, white 14%, transparent) inset,
+      0 0 0 1px color-mix(in oklab, var(--primary) 18%, transparent),
+      0 0 24px -2px color-mix(in oklab, var(--primary) 35%, transparent);
+    border-radius: var(--radius-lg);
+  }
+
+  .neon-text {
+    text-shadow:
+      0 0 1px color-mix(in oklab, var(--primary) 80%, transparent),
+      0 0 12px color-mix(in oklab, var(--primary) 45%, transparent),
+      0 0 24px color-mix(in oklab, var(--accent) 30%, transparent);
+  }
+
+  .float-3d { animation: float-3d 6s ease-in-out infinite; }
+  @keyframes float-3d {
+    0%,100% { transform: translateY(0) rotateX(0) rotateY(0); }
+    50%     { transform: translateY(-6px) rotateX(2deg) rotateY(-2deg); }
+  }
+
+  .spin-slow { animation: spin-slow 18s linear infinite; }
+  @keyframes spin-slow { to { transform: rotate(360deg); } }
+
+  .scanline::after {
+    content: ""; position: absolute; left: 0; right: 0; top: 0; bottom: 0;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0 2px,
+      color-mix(in oklab, var(--primary) 4%, transparent) 2px 3px
+    );
+    pointer-events: none; border-radius: inherit;
+  }
+}

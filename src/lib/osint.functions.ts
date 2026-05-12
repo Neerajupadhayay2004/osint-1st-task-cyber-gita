@@ -33,36 +33,84 @@ function cleanDomain(input: string): string {
   return domain;
 }
 
-/* ----------------------------- Gemini AI helper ----------------------------- */
-async function geminiAnalyze(prompt: string, rawData?: any) {
+/* ----------------------------- AI helper (Lovable AI Gateway w/ Gemini fallback) ----------------------------- */
+async function callLovableAI(prompt: string): Promise<{ ok: boolean; text?: string; error?: string }> {
+  const key = process.env.LOVABLE_API_KEY;
+  if (!key) return { ok: false, error: "LOVABLE_API_KEY missing" };
   try {
-    const key = process.env.GEMINI_API_KEY;
-    if (!key) return getFrontendFallback(rawData, "GEMINI_API_KEY missing");
-    
+    const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: "You are an expert OSINT/cybersecurity analyst. Always respond with valid JSON only." },
+          { role: "user", content: prompt },
+        ],
+        response_format: { type: "json_object" },
+      }),
+    });
+    const j: any = await r.json();
+    if (!r.ok) return { ok: false, error: j?.error?.message || `HTTP ${r.status}` };
+    const text = j?.choices?.[0]?.message?.content || "{}";
+    return { ok: true, text };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+}
+
+async function callGeminiDirect(prompt: string, model: string): Promise<{ ok: boolean; text?: string; error?: string; status?: number }> {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) return { ok: false, error: "GEMINI_API_KEY missing" };
+  try {
     const r = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.3, responseMimeType: "application/json" },
+          generationConfig: { temperature: 0.3, maxOutputTokens: 8192, responseMimeType: "application/json" },
         }),
       }
     );
-    const j = await r.json();
-    if (!r.ok) {
-      console.error("Gemini API error:", j?.error?.message || `HTTP ${r.status}`);
-      return getFrontendFallback(rawData, j?.error?.message || `HTTP ${r.status}`);
-    }
+    const j: any = await r.json();
+    if (!r.ok) return { ok: false, error: j?.error?.message || `HTTP ${r.status}`, status: r.status };
     const text = j?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-    try { 
-      return JSON.parse(text); 
-    } catch { 
-      return { summary: text, recommendations: [], risk_assessment: text }; 
+    return { ok: true, text };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+}
+
+async function geminiAnalyze(prompt: string, rawData?: any) {
+  // Try Lovable AI Gateway first (no quota issues, managed key)
+  let res = await callLovableAI(prompt);
+
+  // Fallback chain: try direct Gemini with successively cheaper/faster models
+  if (!res.ok) {
+    const models = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-1.5-flash"];
+    for (const m of models) {
+      const direct = await callGeminiDirect(prompt, m);
+      if (direct.ok) { res = direct; break; }
+      // If quota error, brief backoff before next model
+      if (direct.status === 429) await new Promise(r => setTimeout(r, 1500));
+      res = direct;
     }
-  } catch (e: any) { 
-    return getFrontendFallback(rawData, e.message); 
+  }
+
+  if (!res.ok || !res.text) {
+    console.error("AI analysis failed:", res.error);
+    return getFrontendFallback(rawData, res.error || "AI unavailable");
+  }
+
+  try {
+    return JSON.parse(res.text);
+  } catch {
+    return { summary: res.text, recommendations: [], risk_assessment: res.text };
   }
 }
 
@@ -256,170 +304,105 @@ export const getThreatFeed = createServerFn({ method: "GET" })
     } catch (e: any) { return fail(e.message); }
   });
 
-/* ----------------------------- CISA KEV (Known Exploited) ----------------------------- */
-export const fetchKev = createServerFn({ method: "GET" })
-  .handler(async () => {
-    try {
-      const json = await safeJson("https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json");
-      return ok({
-        catalogVersion: json.catalogVersion,
-        count: json.count,
-        dateReleased: json.dateReleased,
-        vulnerabilities: (json.vulnerabilities || []).slice(0, 100),
-      });
-    } catch (e: any) { return fail(e.message); }
-  });
-
-/* ----------------------------- DNS over HTTPS (Cloudflare) ----------------------------- */
+/* ----------------------------- Aliases for legacy imports ----------------------------- */
+export const fetchThreatFeed = getThreatFeed;
 export const dnsLookup = createServerFn({ method: "POST" })
   .inputValidator((d: { domain: string; type?: string }) => d)
   .handler(async ({ data }) => {
     try {
       const domain = cleanDomain(data.domain);
-      const type = data.type || "A";
       if (!domain) return fail("Empty domain");
-      const types = type === "ALL" ? ["A", "AAAA", "MX", "TXT", "NS", "CNAME"] : [type];
+      const types = data.type && data.type !== "ALL" ? [data.type] : ["A", "AAAA", "MX", "TXT", "NS", "CNAME"];
       const results: Record<string, any[]> = {};
       await Promise.all(types.map(async (t) => {
-        const json = await safeJson(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(domain)}&type=${t}`, 
-          { headers: { accept: "application/dns-json" } }).catch(() => null);
-        results[t] = json?.Answer || [];
+        try {
+          const j = await safeJson(`https://dns.google/resolve?name=${encodeURIComponent(domain)}&type=${t}`);
+          results[t] = j?.Answer || [];
+        } catch { results[t] = []; }
       }));
-      return ok(results);
+      return ok({ domain, records: results });
     } catch (e: any) { return fail(e.message); }
   });
 
-/* ----------------------------- WHOIS-ish via RDAP ----------------------------- */
 export const rdapLookup = createServerFn({ method: "POST" })
   .inputValidator((d: { domain: string }) => d)
   .handler(async ({ data }) => {
     try {
       const domain = cleanDomain(data.domain);
       if (!domain) return fail("Empty domain");
-      const json = await safeJson(`https://rdap.org/domain/${encodeURIComponent(domain)}`);
-      return ok(json);
+      const j = await safeJson(`https://rdap.org/domain/${encodeURIComponent(domain)}`);
+      return ok(j);
     } catch (e: any) { return fail(e.message); }
   });
 
-/* ============================ PAID / KEY-BASED OSINT ============================ */
+export const fetchKev = createServerFn({ method: "GET" })
+  .handler(async () => {
+    try {
+      const j = await safeJson("https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json");
+      const items = (j?.vulnerabilities || []).slice(0, 200);
+      return ok({ items, vulnerabilities: items, count: j?.count });
+    } catch (e: any) { return fail(e.message); }
+  });
 
-/* ----------------------------- Shodan host lookup ----------------------------- */
 export const shodanHost = createServerFn({ method: "POST" })
   .inputValidator((d: { ip: string }) => d)
   .handler(async ({ data }) => {
     try {
-      const ip = data.ip.trim();
-      if (!ip) return fail("Empty IP");
-      // Call our backend
-      try {
-        const json = await safeJson(`${BACKEND_URL}/shodan/${encodeURIComponent(ip)}`);
-        return ok(json);
-      } catch (backendError) {
-        const key = process.env.SHODAN_API_KEY;
-        if (!key) return fail("SHODAN_API_KEY not configured");
-        const json = await safeJson(`https://api.shodan.io/shodan/host/${encodeURIComponent(ip)}?key=${key}`);
-        return ok(json);
-      }
+      const j = await safeJson(`https://api.shodan.io/shodan/host/${encodeURIComponent(data.ip)}?key=${process.env.SHODAN_API_KEY || ""}`);
+      return ok(j);
     } catch (e: any) { return fail(e.message); }
   });
 
-/* ----------------------------- Shodan search ----------------------------- */
 export const shodanSearch = createServerFn({ method: "POST" })
   .inputValidator((d: { query: string }) => d)
   .handler(async ({ data }) => {
     try {
-      const key = process.env.SHODAN_API_KEY;
-      if (!key) return fail("SHODAN_API_KEY not configured");
-      const q = data.query.trim();
-      if (!q) return fail("Empty query");
-      const json = await safeJson(`https://api.shodan.io/shodan/host/count?key=${key}&query=${encodeURIComponent(q)}&facets=country,org,port`);
-      return ok(json);
+      const j = await safeJson(`https://api.shodan.io/shodan/host/search?key=${process.env.SHODAN_API_KEY || ""}&query=${encodeURIComponent(data.query)}`);
+      return ok(j);
     } catch (e: any) { return fail(e.message); }
   });
 
-/* ----------------------------- AbuseIPDB ----------------------------- */
+export const vtLookup = createServerFn({ method: "POST" })
+  .inputValidator((d: { kind: "ip" | "domain" | "url" | "file" | "hash"; value: string }) => d)
+  .handler(async ({ data }) => {
+    try {
+      const map: Record<string, string> = { ip: "ip_addresses", domain: "domains", url: "urls", file: "files", hash: "files" };
+      const path = map[data.kind] || "domains";
+      let value = data.value;
+      if (data.kind === "url") value = btoa(value).replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
+      const j = await safeJson(`https://www.virustotal.com/api/v3/${path}/${encodeURIComponent(value)}`, {
+        headers: { "x-apikey": process.env.VIRUSTOTAL_API_KEY || "", Accept: "application/json" },
+      });
+      return ok(j?.data || j);
+    } catch (e: any) { return fail(e.message); }
+  });
+
 export const abuseCheck = createServerFn({ method: "POST" })
   .inputValidator((d: { ip: string }) => d)
   .handler(async ({ data }) => {
     try {
-      const ip = data.ip.trim();
-      if (!ip) return fail("Empty IP");
-      // Call our backend
-      try {
-        const json = await safeJson(`${BACKEND_URL}/abuseipdb/${encodeURIComponent(ip)}`);
-        return ok(json);
-      } catch (backendError) {
-        const key = process.env.ABUSEIPDB_API_KEY;
-        if (!key) return fail("ABUSEIPDB_API_KEY not configured");
-        const json = await safeJson(
-          `https://api.abuseipdb.com/api/v2/check?ipAddress=${encodeURIComponent(ip)}&maxAgeInDays=90&verbose=true`,
-          { headers: { Key: key, Accept: "application/json" } }
-        );
-        return ok(json?.data || json);
-      }
+      const j = await safeJson(
+        `https://api.abuseipdb.com/api/v2/check?ipAddress=${encodeURIComponent(data.ip)}&maxAgeInDays=90&verbose=true`,
+        { headers: { Key: process.env.ABUSEIPDB_API_KEY || "", Accept: "application/json" } }
+      );
+      return ok(j?.data || j);
     } catch (e: any) { return fail(e.message); }
   });
 
-/* ----------------------------- VirusTotal ----------------------------- */
-export const vtLookup = createServerFn({ method: "POST" })
-  .inputValidator((d: { kind: "ip" | "domain" | "hash" | "url"; value: string }) => d)
-  .handler(async ({ data }) => {
-    try {
-      const v = data.value.trim();
-      if (!v) return fail("Empty value");
-      // Call our backend
-      try {
-        const json = await safeJson(`${BACKEND_URL}/virustotal/${data.kind}/${encodeURIComponent(v)}`);
-        return ok(json);
-      } catch (backendError) {
-        const key = process.env.VIRUSTOTAL_API_KEY;
-        if (!key) return fail("VIRUSTOTAL_API_KEY not configured");
-        
-        let kind = data.kind;
-        // Auto-correction logic: If user selected 'ip' but it looks like a domain, fix it.
-        const isIp = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(v) || v.includes(":");
-        const isHash = /^[a-f0-9]{32,64}$/i.test(v);
-        const isUrl = v.startsWith("http://") || v.startsWith("https://");
-        if (kind === "ip" && !isIp && !isHash && !isUrl) kind = "domain";
-        else if (kind === "domain" && isIp) kind = "ip";
-
-        let path = "";
-        if (kind === "ip") path = `ip_addresses/${encodeURIComponent(v)}`;
-        else if (kind === "domain") path = `domains/${encodeURIComponent(v)}`;
-        else if (kind === "hash") path = `files/${encodeURIComponent(v)}`;
-        else if (kind === "url") {
-          const id = btoa(v).replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
-          path = `urls/${id}`;
-        }
-
-        const json = await safeJson(`https://www.virustotal.com/api/v3/${path}`, {
-          headers: { "x-apikey": key, Accept: "application/json" },
-        });
-        
-        return ok({ ...json?.data || json, _detected_kind: kind });
-      }
-    } catch (e: any) {
-      return fail(e.message);
-    }
-  });
-
-/* ----------------------------- Generic Gemini AI Analyze ----------------------------- */
 export const aiAnalyze = createServerFn({ method: "POST" })
   .inputValidator((d: { context: string; data: any }) => d)
   .handler(async ({ data }) => {
-    const prompt = `You are an elite cybersecurity analyst. Analyze the following ${data.context} OSINT data. 
-Return STRICT JSON ONLY with these keys: 
+    const prompt = `You are a senior cybersecurity OSINT analyst. Analyze the following ${data.context} data and return STRICT JSON with these keys:
 {
-  "summary": "1-line verdict (max 120 chars)",
-  "risk_assessment": "2-3 sentence detailed risk paragraph",
-  "key_findings": ["finding 1","finding 2","finding 3"],
-  "recommendations": ["action 1","action 2","action 3","action 4"],
-  "severity": "low|medium|high|critical"
+  "summary": "1-2 sentence executive summary",
+  "risk_assessment": "2-4 sentence detailed risk paragraph",
+  "key_findings": ["finding 1", "finding 2", "finding 3"],
+  "recommendations": ["actionable step 1", "actionable step 2", "actionable step 3"],
+  "severity": "low" | "medium" | "high" | "critical"
 }
-DATA:
-${JSON.stringify(data.data).slice(0, 8000)}`;
 
-    const res = await geminiAnalyze(prompt);
-    if (res.error) return fail(res.error);
-    return ok(res);
+Data:
+${JSON.stringify(data.data).slice(0, 8000)}`;
+    const result = await geminiAnalyze(prompt, data.data);
+    return ok(result);
   });

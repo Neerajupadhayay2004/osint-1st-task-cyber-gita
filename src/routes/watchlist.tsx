@@ -88,21 +88,21 @@ function WatchlistPage() {
       let res: any;
       if (item.kind === "ip") {
         const [geo, abuse, vt] = await Promise.all([
-          ipFn({ data: { query: item.value } }).catch(e => ({ ok: false, error: e.message })),
-          abuseFn({ data: { ip: item.value } }).catch(e => ({ ok: false, error: e.message })),
-          vtFn({ data: { kind: "ip", value: item.value } }).catch(e => ({ ok: false, error: e.message })),
+          ipFn({ data: { query: item.value } }).catch((e: any) => ({ ok: false, error: e.message })),
+          abuseFn({ data: { ip: item.value } }).catch((e: any) => ({ ok: false, error: e.message })),
+          vtFn({ data: { kind: "ip", value: item.value } }).catch((e: any) => ({ ok: false, error: e.message })),
         ]);
         res = { geo, abuse, vt };
       } else if (item.kind === "domain") {
         const [dns, vt] = await Promise.all([
-          dnsFn({ data: { domain: item.value, type: "ALL" } }).catch(e => ({ ok: false, error: e.message })),
-          vtFn({ data: { kind: "domain", value: item.value } }).catch(e => ({ ok: false, error: e.message })),
+          dnsFn({ data: { domain: item.value, type: "ALL" } }).catch((e: any) => ({ ok: false, error: e.message })),
+          vtFn({ data: { kind: "domain", value: item.value } }).catch((e: any) => ({ ok: false, error: e.message })),
         ]);
         res = { dns, vt };
       } else if (item.kind === "email") {
-        res = { breach: await breachFn({ data: { email: item.value } }).catch(e => ({ ok: false, error: e.message })) };
+        res = { breach: await breachFn({ data: { email: item.value } }).catch((e: any) => ({ ok: false, error: e.message })) };
       } else if (item.kind === "cve") {
-        res = { cve: await cveFn({ data: { query: item.value } }).catch(e => ({ ok: false, error: e.message })) };
+        res = { cve: await cveFn({ data: { query: item.value } }).catch((e: any) => ({ ok: false, error: e.message })) };
       }
       setDrawer({ item, data: res, loading: false });
       // persist last result
