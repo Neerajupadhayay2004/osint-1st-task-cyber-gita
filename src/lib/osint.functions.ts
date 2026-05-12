@@ -366,7 +366,7 @@ export const vtLookup = createServerFn({ method: "POST" })
   .inputValidator((d: { kind: "ip" | "domain" | "url" | "file" | "hash"; value: string }) => d)
   .handler(async ({ data }) => {
     try {
-      const map: Record<string, string> = { ip: "ip_addresses", domain: "domains", url: "urls", file: "files" };
+      const map: Record<string, string> = { ip: "ip_addresses", domain: "domains", url: "urls", file: "files", hash: "files" };
       const path = map[data.kind] || "domains";
       let value = data.value;
       if (data.kind === "url") value = btoa(value).replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
