@@ -22,7 +22,7 @@ function Page() {
       <PageHeader
         icon={<Radio className="size-5" />}
         title="Live Threat Feed"
-        description="Recently published CVEs from CIRCL's mirror of the global vulnerability database. Auto-refreshes every minute."
+        description="Recently published CVEs from the NVD (NIST National Vulnerability Database) — last 7 days. Auto-refreshes every minute."
         actions={
           <button onClick={() => q.refetch()} className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md border border-border hover:bg-secondary">
             <RefreshCw className={`size-3.5 ${q.isFetching ? "animate-spin" : ""}`} /> Refresh
