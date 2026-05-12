@@ -33,36 +33,84 @@ function cleanDomain(input: string): string {
   return domain;
 }
 
-/* ----------------------------- Gemini AI helper ----------------------------- */
-async function geminiAnalyze(prompt: string, rawData?: any) {
+/* ----------------------------- AI helper (Lovable AI Gateway w/ Gemini fallback) ----------------------------- */
+async function callLovableAI(prompt: string): Promise<{ ok: boolean; text?: string; error?: string }> {
+  const key = process.env.LOVABLE_API_KEY;
+  if (!key) return { ok: false, error: "LOVABLE_API_KEY missing" };
   try {
-    const key = process.env.GEMINI_API_KEY;
-    if (!key) return getFrontendFallback(rawData, "GEMINI_API_KEY missing");
-    
+    const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: "You are an expert OSINT/cybersecurity analyst. Always respond with valid JSON only." },
+          { role: "user", content: prompt },
+        ],
+        response_format: { type: "json_object" },
+      }),
+    });
+    const j: any = await r.json();
+    if (!r.ok) return { ok: false, error: j?.error?.message || `HTTP ${r.status}` };
+    const text = j?.choices?.[0]?.message?.content || "{}";
+    return { ok: true, text };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+}
+
+async function callGeminiDirect(prompt: string, model: string): Promise<{ ok: boolean; text?: string; error?: string; status?: number }> {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) return { ok: false, error: "GEMINI_API_KEY missing" };
+  try {
     const r = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.3, responseMimeType: "application/json" },
+          generationConfig: { temperature: 0.3, maxOutputTokens: 8192, responseMimeType: "application/json" },
         }),
       }
     );
-    const j = await r.json();
-    if (!r.ok) {
-      console.error("Gemini API error:", j?.error?.message || `HTTP ${r.status}`);
-      return getFrontendFallback(rawData, j?.error?.message || `HTTP ${r.status}`);
-    }
+    const j: any = await r.json();
+    if (!r.ok) return { ok: false, error: j?.error?.message || `HTTP ${r.status}`, status: r.status };
     const text = j?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-    try { 
-      return JSON.parse(text); 
-    } catch { 
-      return { summary: text, recommendations: [], risk_assessment: text }; 
+    return { ok: true, text };
+  } catch (e: any) {
+    return { ok: false, error: e.message };
+  }
+}
+
+async function geminiAnalyze(prompt: string, rawData?: any) {
+  // Try Lovable AI Gateway first (no quota issues, managed key)
+  let res = await callLovableAI(prompt);
+
+  // Fallback chain: try direct Gemini with successively cheaper/faster models
+  if (!res.ok) {
+    const models = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-1.5-flash"];
+    for (const m of models) {
+      const direct = await callGeminiDirect(prompt, m);
+      if (direct.ok) { res = direct; break; }
+      // If quota error, brief backoff before next model
+      if (direct.status === 429) await new Promise(r => setTimeout(r, 1500));
+      res = direct;
     }
-  } catch (e: any) { 
-    return getFrontendFallback(rawData, e.message); 
+  }
+
+  if (!res.ok || !res.text) {
+    console.error("AI analysis failed:", res.error);
+    return getFrontendFallback(rawData, res.error || "AI unavailable");
+  }
+
+  try {
+    return JSON.parse(res.text);
+  } catch {
+    return { summary: res.text, recommendations: [], risk_assessment: res.text };
   }
 }
 
