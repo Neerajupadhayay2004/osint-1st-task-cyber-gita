@@ -21,8 +21,8 @@ export function AiAnalysis({ context, data }: { context: string; data: any }) {
   if (state === "idle") {
     return (
       <button onClick={run}
-        className="w-full glass-card p-4 flex items-center justify-center gap-2 text-sm font-medium hover:border-primary/50 transition-all group [transform:perspective(800px)] hover:[transform:perspective(800px)_translateY(-2px)]">
-        <Sparkles className="size-4 text-primary group-hover:rotate-12 transition-transform" />
+        className="card-3d w-full p-4 flex items-center justify-center gap-2 text-sm font-medium group neon-text">
+        <Sparkles className="size-4 text-primary group-hover:rotate-12 transition-transform float-3d" />
         Analyze with Gemini AI
       </button>
     );
@@ -30,19 +30,19 @@ export function AiAnalysis({ context, data }: { context: string; data: any }) {
 
   if (state === "loading") {
     return (
-      <div className="glass-card p-6 text-center">
+      <div className="card-3d scanline relative p-6 text-center overflow-hidden">
         <Loader2 className="size-5 animate-spin inline mr-2 text-primary" />
-        <span className="text-sm text-muted-foreground">Gemini AI is analyzing the intelligence…</span>
+        <span className="text-sm text-muted-foreground">AI is analyzing the intelligence…</span>
       </div>
     );
   }
 
   if (state === "error") {
     return (
-      <div className="glass-card p-4 border-l-4 border-destructive bg-destructive/5 text-sm">
-        <div className="flex items-center gap-2 text-destructive font-medium"><AlertTriangle className="size-4" />Gemini analysis failed</div>
+      <div className="card-3d edge-4k p-4 border-l-4 border-destructive bg-destructive/5 text-sm">
+        <div className="flex items-center gap-2 text-destructive font-medium"><AlertTriangle className="size-4" />AI analysis failed</div>
         <div className="text-xs text-muted-foreground mt-1">{err}</div>
-        <button onClick={run} className="mt-2 text-xs underline">Retry</button>
+        <button onClick={run} className="mt-2 text-xs underline hover:text-primary">Retry</button>
       </div>
     );
   }
@@ -54,7 +54,7 @@ export function AiAnalysis({ context, data }: { context: string; data: any }) {
                                       "text-success border-success/40 bg-success/5";
 
   return (
-    <div className="glass-card p-5 border-l-4 border-primary/40 bg-primary/5 animate-in fade-in slide-in-from-bottom-2">
+    <div className="card-3d scanline relative p-5 border-l-4 border-primary/40 bg-primary/5 animate-in fade-in slide-in-from-bottom-2">
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-center gap-2">
           <div className="size-8 rounded-md grid place-items-center bg-primary/10 border border-primary/30">
