@@ -33,8 +33,11 @@ function ChatPage() {
   const [model, setModel] = useState<string>("");
   const [err, setErr] = useState<string>("");
   const [copiedId, setCopiedId] = useState<string>("");
+  const [attached, setAttached] = useState<{ name: string; text: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const analyze = useServerFn(analyzeIocs);
 
   useEffect(() => {
     try {
