@@ -88,6 +88,41 @@ function ChatPage() {
     inputRef.current?.focus();
   }
 
+  async function pickFile(f: File | null) {
+    if (!f) return;
+    if (f.size > 1_000_000) { setErr("File too large (max 1 MB)"); return; }
+    const text = await f.text();
+    setAttached({ name: f.name, text });
+  }
+
+  async function runIocAnalysis() {
+    if (!attached || busy) return;
+    setErr("");
+    const userMsg: Msg = {
+      id: uid(), role: "user", ts: Date.now(),
+      content: `📎 Analyze IOC file: **${attached.name}** (${(attached.text.length / 1024).toFixed(1)} KB)`,
+    };
+    setMessages((m) => [...m, userMsg]);
+    setBusy(true);
+    try {
+      const res: any = await analyze({ data: { text: attached.text, filename: attached.name } });
+      if (res?.ok) {
+        const i = res.iocs;
+        const header = `### 🛡️ IOC Triage Report — \`${attached.name}\`\n\n**Detected:** ${i.ips.length} IPs · ${i.domains.length} domains · ${i.emails.length} emails · ${i.hashes.length} hashes · ${i.cves.length} CVEs · ${i.urls.length} URLs\n\n---\n\n`;
+        setMessages((m) => [...m, { id: uid(), role: "assistant", ts: Date.now(), content: header + (res.summary || "(empty)") }]);
+        setModel(res.model || "");
+      } else {
+        setErr(res?.error || "Analysis failed");
+      }
+    } catch (e: any) {
+      setErr(e?.message || "Network error");
+    } finally {
+      setBusy(false);
+      setAttached(null);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
   function copy(id: string, text: string) {
     navigator.clipboard?.writeText(text).then(() => {
       setCopiedId(id);
