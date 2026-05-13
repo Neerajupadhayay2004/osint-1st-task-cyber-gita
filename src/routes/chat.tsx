@@ -1,8 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
 import { chatSend, type ChatMsg } from "@/lib/chat.functions";
-import { Bot, User, Send, Sparkles, Trash2, Copy, Check, Loader2, Globe, Bug, Server, Mail, ScanSearch, FileSearch, Brain } from "lucide-react";
+import { analyzeIocs } from "@/lib/ioc.functions";
+import { Bot, User, Send, Sparkles, Trash2, Copy, Check, Loader2, Globe, Bug, Server, Mail, ScanSearch, FileSearch, Brain, ArrowLeft, Paperclip, FileText, Wrench, X } from "lucide-react";
 
 export const Route = createFileRoute("/chat")({
   component: ChatPage,
