@@ -18,6 +18,7 @@ import { Route as IpDomainRouteImport } from './routes/ip-domain'
 import { Route as EmailBreachRouteImport } from './routes/email-breach'
 import { Route as DnsReconRouteImport } from './routes/dns-recon'
 import { Route as CveSearchRouteImport } from './routes/cve-search'
+import { Route as ChatRouteImport } from './routes/chat'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AlertsRouteImport } from './routes/alerts'
 import { Route as IndexRouteImport } from './routes/index'
@@ -67,6 +68,11 @@ const CveSearchRoute = CveSearchRouteImport.update({
   path: '/cve-search',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ChatRoute = ChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/alerts': typeof AlertsRoute
   '/auth': typeof AuthRoute
+  '/chat': typeof ChatRoute
   '/cve-search': typeof CveSearchRoute
   '/dns-recon': typeof DnsReconRoute
   '/email-breach': typeof EmailBreachRoute
@@ -101,6 +108,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/alerts': typeof AlertsRoute
   '/auth': typeof AuthRoute
+  '/chat': typeof ChatRoute
   '/cve-search': typeof CveSearchRoute
   '/dns-recon': typeof DnsReconRoute
   '/email-breach': typeof EmailBreachRoute
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/alerts': typeof AlertsRoute
   '/auth': typeof AuthRoute
+  '/chat': typeof ChatRoute
   '/cve-search': typeof CveSearchRoute
   '/dns-recon': typeof DnsReconRoute
   '/email-breach': typeof EmailBreachRoute
@@ -132,6 +141,7 @@ export interface FileRouteTypes {
     | '/'
     | '/alerts'
     | '/auth'
+    | '/chat'
     | '/cve-search'
     | '/dns-recon'
     | '/email-breach'
@@ -146,6 +156,7 @@ export interface FileRouteTypes {
     | '/'
     | '/alerts'
     | '/auth'
+    | '/chat'
     | '/cve-search'
     | '/dns-recon'
     | '/email-breach'
@@ -160,6 +171,7 @@ export interface FileRouteTypes {
     | '/'
     | '/alerts'
     | '/auth'
+    | '/chat'
     | '/cve-search'
     | '/dns-recon'
     | '/email-breach'
@@ -175,6 +187,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AlertsRoute: typeof AlertsRoute
   AuthRoute: typeof AuthRoute
+  ChatRoute: typeof ChatRoute
   CveSearchRoute: typeof CveSearchRoute
   DnsReconRoute: typeof DnsReconRoute
   EmailBreachRoute: typeof EmailBreachRoute
@@ -251,6 +264,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CveSearchRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/chat': {
+      id: '/chat'
+      path: '/chat'
+      fullPath: '/chat'
+      preLoaderRoute: typeof ChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -279,6 +299,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AlertsRoute: AlertsRoute,
   AuthRoute: AuthRoute,
+  ChatRoute: ChatRoute,
   CveSearchRoute: CveSearchRoute,
   DnsReconRoute: DnsReconRoute,
   EmailBreachRoute: EmailBreachRoute,
@@ -292,3 +313,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
