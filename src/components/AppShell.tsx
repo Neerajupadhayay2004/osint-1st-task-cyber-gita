@@ -1,5 +1,5 @@
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { Shield, LayoutDashboard, Globe, Mail, Bug, ShieldAlert, Radio, FileSearch, Bookmark, Activity, Bell, Server, ScanSearch, Menu, X } from "lucide-react";
+import { Shield, LayoutDashboard, Globe, Mail, Bug, ShieldAlert, Radio, FileSearch, Bookmark, Activity, Bell, Server, ScanSearch, Menu, X, Brain } from "lucide-react";
 import { ReactNode, useState, useEffect } from "react";
 
 const nav = [
@@ -14,6 +14,7 @@ const nav = [
   { to: "/shodan", label: "Shodan", icon: Server },
   { to: "/virustotal", label: "VirusTotal", icon: ScanSearch },
   { to: "/watchlist", label: "Watchlist", icon: Bookmark },
+  { to: "/chat", label: "AI Analyst", icon: Brain },
 ];
 
 export default function AppShell({ children }: { children?: ReactNode }) {
