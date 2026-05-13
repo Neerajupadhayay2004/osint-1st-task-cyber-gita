@@ -144,7 +144,10 @@ function ChatPage() {
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight neon-text">CyberGita AI Analyst</h1>
             <p className="text-sm text-muted-foreground">Gemini-powered chat for OSINT, threat intel, CVEs and recon strategy.</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Link to="/" className="px-3 py-2 text-xs rounded-md border border-border hover:bg-secondary inline-flex items-center gap-1.5 hover:-translate-x-0.5 transition-transform">
+              <ArrowLeft className="size-3.5" /> Back
+            </Link>
             {model && <span className="hidden md:inline text-[11px] font-mono text-muted-foreground px-2 py-1 rounded-md border border-border bg-secondary/40">{model}</span>}
             <button onClick={clearChat} className="px-3 py-2 text-xs rounded-md border border-border hover:bg-secondary inline-flex items-center gap-1.5">
               <Trash2 className="size-3.5" /> Clear
@@ -200,19 +203,40 @@ function ChatPage() {
         </div>
 
         {/* Composer */}
-        <div className="border-t border-border bg-background/60 backdrop-blur p-3 md:p-4">
+        <div className="border-t border-border bg-background/60 backdrop-blur p-3 md:p-4 space-y-2">
+          {attached && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-primary/40 bg-primary/10 text-sm animate-fade-in">
+              <FileText className="size-4 text-primary shrink-0" />
+              <span className="font-mono text-xs truncate flex-1">{attached.name}</span>
+              <span className="text-[11px] text-muted-foreground shrink-0">{(attached.text.length / 1024).toFixed(1)} KB</span>
+              <button onClick={runIocAnalysis} disabled={busy}
+                className="px-2.5 py-1 rounded-md bg-gradient-to-br from-primary to-accent text-primary-foreground text-xs inline-flex items-center gap-1 hover:scale-105 active:scale-95 disabled:opacity-40 transition-transform">
+                <Wrench className="size-3" /> Run IOC Analysis
+              </button>
+              <button onClick={() => { setAttached(null); if (fileRef.current) fileRef.current.value = ""; }}
+                className="p-1 rounded-md hover:bg-destructive/20 text-muted-foreground hover:text-destructive">
+                <X className="size-3.5" />
+              </button>
+            </div>
+          )}
           <div className="relative rounded-xl border border-border bg-card/60 focus-within:border-primary/60 focus-within:shadow-[0_0_0_3px_hsl(var(--primary)/0.15)] transition-all">
             <textarea ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={onKey}
               rows={2}
-              placeholder="Ask about an IP, CVE, domain, hash, breach… (Enter to send · Shift+Enter for newline)"
-              className="w-full bg-transparent resize-none px-4 py-3 pr-14 text-sm outline-none placeholder:text-muted-foreground" />
+              placeholder="Ask about an IP, CVE, domain, hash, breach… or attach a CSV/TXT of IOCs"
+              className="w-full bg-transparent resize-none px-4 py-3 pl-12 pr-14 text-sm outline-none placeholder:text-muted-foreground" />
+            <input ref={fileRef} type="file" accept=".csv,.txt,.log,.json,text/*" className="hidden"
+              onChange={(e) => pickFile(e.target.files?.[0] ?? null)} />
+            <button onClick={() => fileRef.current?.click()} disabled={busy} title="Attach IOC file (CSV/TXT)"
+              className="absolute left-2 bottom-2 size-9 grid place-items-center rounded-lg border border-border bg-secondary/60 hover:bg-secondary hover:border-primary/50 text-muted-foreground hover:text-primary disabled:opacity-40 transition-colors">
+              <Paperclip className="size-4" />
+            </button>
             <button onClick={() => submit(input)} disabled={busy || !input.trim()}
               className="absolute right-2 bottom-2 size-9 grid place-items-center rounded-lg bg-gradient-to-br from-primary to-accent text-primary-foreground shadow-[0_4px_20px_-4px_hsl(var(--primary)/0.6)] hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100 transition-transform">
               {busy ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
             </button>
           </div>
-          <div className="mt-2 text-[11px] text-muted-foreground font-mono">
-            Powered by Lovable AI Gateway · Gemini fallback enabled · Conversation stored in your browser
+          <div className="text-[11px] text-muted-foreground font-mono flex flex-wrap gap-x-3 gap-y-1">
+            <span>📎 CSV/TXT IOC upload · 🛠 live tool calling · 💾 stored in browser</span>
           </div>
         </div>
       </div>
